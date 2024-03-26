@@ -161,10 +161,10 @@ const convertToJSON = (file) => {
         const target = getDateToTarget(item);
         allDate.push(...target);
       });
-      jsonData.value = allDate;
+      jsonData.value = allDate.reverse();
       console.log("最终数据：", allDate);
     } catch (error) {
-      console.error("PDF 转换出错:", error);
+      console.error("PDF 转换出错:", jsonData.value);
     } finally {
       isLoading.value = false;
     }
