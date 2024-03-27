@@ -162,7 +162,7 @@ const convertToJSON = (file) => {
         allDate.push(...target);
       });
       jsonData.value = allDate.reverse();
-      console.log("最终数据：", allDate);
+      console.log("最终数据：", jsonData.value);
     } catch (error) {
       console.error("PDF 转换出错:", jsonData.value);
     } finally {

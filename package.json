@@ -10,10 +10,8 @@
   },
   "dependencies": {
     "path": "^0.12.7",
-    "pdf2json": "^3.0.5",
     "pdfjs-dist": "^4.0.379",
-    "vue": "^3.4.21",
-    "vue-pdf": "^4.3.0"
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
