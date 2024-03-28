@@ -3,4 +3,6 @@
 ## 目前包括银行
 ```
 /components/PdfToJson.vue   // 农业银行
+/components/PdfToJson2.vue   // 广西农村信用社
+
 ```

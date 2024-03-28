@@ -10,14 +10,13 @@
 
 <script setup>
 /**
- *  @description: 处理PDF文件并生成JSON数据(农业银行)
+ *  @description: 处理PDF文件并生成JSON数据(信用社)
  */
 import { ref } from "vue";
 import * as pdfjs from "pdfjs-dist";
-
+import { random } from "lodash";
 const jsonData = ref("");
 const isLoading = ref(false);
-const dateValue = [];
 
 // 设置全局 Worker 文件路径
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -34,79 +33,93 @@ const handleFileChange = (event) => {
 
 // 获取从开始到结束的有效数据
 const getEffectData = (data) => {
-  const startRegex = /\d{8}\s\d{6}/; // 例 "20230320 131631"
-  const startRegexShot = /\b\d{8}\b/; // 例 "20230320"
+  const startRegex = "对方户名";
+  const endRegex =
+    "===============================================================================================================================";
   // 匹配开始的数据
-  const startIndex = data.findIndex(
-    (item) =>
-      startRegex.test(item) ||
-      (startRegexShot.test(item) && !/\d{8}-\d{8}/.test(item))
-  );
+  const startIndex = data.findIndex((item) => item == startRegex);
   // 匹配到 第*页 结束的数据
-  let endIndex = data.findIndex((item) => /第\d+页\/共\d+页/.test(item));
+  let endIndex = data.findIndex((item) => item == endRegex);
   if (endIndex === -1) {
     endIndex = data.length; // 如果找不到结束模式，则将结束索引设置为数组的长度
   }
-  const validData = startIndex !== -1 ? data.slice(startIndex, endIndex) : [];
+  const validData =
+    startIndex !== -1 ? data.slice(startIndex + 1, endIndex) : [];
   return validData;
 };
 // 分割数组
-const splitByDate = (data) => {
-  const result = [];
-  let currentSubarray = [];
+const splitByDate = (dataArray) => {
+  const splitArrays = [];
+  let tempArray = [];
 
-  for (const item of data) {
-    if (/^\d{8}(?:\s\d{6})?$/.test(item)) {
-      // 如果当前项是日期格式，则将当前子数组推送到结果数组中，并创建一个新的子数组
-      if (currentSubarray.length > 0) {
-        result.push(currentSubarray);
-        currentSubarray = [];
+  for (let i = 0; i < dataArray.length; i++) {
+    if (dataArray[i] === "2675") {
+      if (tempArray.length > 0) {
+        splitArrays.push(tempArray);
       }
+      tempArray = [dataArray[i - 1], dataArray[i]];
+    } else {
+      tempArray.push(dataArray[i]);
     }
-    currentSubarray.push(item);
   }
 
-  // 推送最后一个子数组到结果数组中
-  if (currentSubarray.length > 0) {
-    result.push(currentSubarray);
+  if (tempArray.length > 2) {
+    splitArrays.push(tempArray);
   }
 
-  return result;
+  // 删掉无用的数据，并去重
+  splitArrays.shift();
+  for (let i = 0; i < splitArrays.length; i++) {
+    const childLength = splitArrays[i].length;
+    if (!splitArrays[i + 1]) {
+      continue;
+    }
+    if (splitArrays[i][childLength - 1] === splitArrays[i + 1][0]) {
+      splitArrays[i].pop();
+    }
+    // 有个本行atm的数据有点问题，会对数据照成影响，特殊处理一下
+    if (splitArrays[i].find((item) => item === "本行atm") && i > 0) {
+      splitArrays[i - 1].push(splitArrays[i][0]);
+      splitArrays[i][0] = "";
+    }
+  }
+  return splitArrays;
 };
 // 获取数据内容
 const formatTransaction = (transaction) => {
-  const [
-    time, // 日期时间
-    tradingNetwork, // 交易网点
-    name, // 短摘要
-    balance, // 本次余额
-    logNum, // 日志号
-    channel, // 渠道
-    money, // 交易金额
-    info, // 对方账号户名 or 附言
-    desc, // 附言
-  ] = transaction;
-
-  const receive = info?.split(" ") ?? [];
-
-  let account = "";
-  let receiveNm = "";
-  if (receive.length > 1) {
-    account = receive[0];
-    receiveNm = receive[1];
+  let [date, balance, money, time, summary, username, account, type] = [
+    transaction[5],
+    transaction[2],
+    transaction[3],
+    transaction[5],
+    transaction[0],
+    "",
+    "",
+    transaction[4] == "借方" ? "支出" : "收入",
+  ];
+  if (transaction.length === 11) {
+    username = transaction[9] + transaction[10];
+    account = transaction[8];
+  } else if (transaction.length === 10) {
+    username = transaction[9];
+    account = transaction[8];
+  } else if (transaction.length === 9) {
+    username = transaction[8];
+    account = transaction[7];
+  } else if (transaction.length === 7) {
+    username = transaction[6];
   }
 
   const formattedTransaction = {
-    time: formatTime(time),
-    name,
-    money,
+    date,
     balance,
-    channel,
+    money,
+    time,
+    summary,
+    username,
     account,
-    receiveNm: receiveNm || "",
-    desc: desc ?? info ?? "",
-    type: "转账",
-    billType: parseFloat(money) < 0 ? 1 : 2,
+    type,
+    code: random(100000, 999999),
   };
 
   return formattedTransaction;
@@ -124,17 +137,52 @@ const formatTime = (timeString) => {
 
 // 获取有效数据并转换为目标数据
 const getDateToTarget = (initial) => {
-  const dateRangeRegex = /\b\d{8}-\d{8}\b/; // 匹配日期范围格式，例如 "20230320-20240320"
-  // 获取日期数据
-  dateValue.value = initial.find((item) => dateRangeRegex.test(item));
-  // console.log("dateValue.value", dateValue.value);
   const pdfText = initial + "\n";
   const initData = JSON.stringify(pdfText, null, 2);
   const jsonList = initial.filter((item) => item !== "" && item !== " ");
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
+  // console.log("dateData", dateData);
+  // console.log("splitList", splitList);
+  // console.log("finallyData", finallyData);
   return finallyData;
+};
+
+// 最后将数据转换为想要的格式
+const dateToWant = (dataSource) => {
+  return dataSource.reduce((acc, item) => {
+    const existingDateIndex = acc.findIndex((obj) => obj.date === item.date);
+    if (existingDateIndex !== -1) {
+      acc[existingDateIndex].list.push({
+        balance: item.balance,
+        money: item.money,
+        time: item.time,
+        summary: item.summary,
+        username: item.username,
+        account: item.account,
+        type: item.type,
+        code: item.code,
+      });
+    } else {
+      acc.push({
+        date: item.date,
+        list: [
+          {
+            balance: item.balance,
+            money: item.money,
+            time: item.time,
+            summary: item.summary,
+            username: item.username,
+            account: item.account,
+            type: item.type,
+            code: item.code,
+          },
+        ],
+      });
+    }
+    return acc;
+  }, []);
 };
 
 // pdf转换为json
@@ -153,15 +201,14 @@ const convertToJSON = (file) => {
         const text = content.items.map((item) => item.str);
         pdfTextList.push(text);
       }
-      // const finallyData = pdfTextList.map((item) => getDateToTarget(item));
-      // jsonData.value = finallyData;
 
       const allDate = [];
       pdfTextList.forEach((item) => {
         const target = getDateToTarget(item);
         allDate.push(...target);
       });
-      jsonData.value = allDate.reverse();
+
+      jsonData.value = dateToWant(allDate.reverse());
       console.log("最终数据：", jsonData.value);
     } catch (error) {
       console.error("PDF 转换出错:", jsonData.value);
@@ -190,7 +237,7 @@ const exportJSON = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${dateValue.value}.json`;
+  a.download = `信用社.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

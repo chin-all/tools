@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PdfToJson from "./components/PdfToJson.vue";
+import PdfToJson from "./components/PdfToJson2.vue";
 </script>
 
 <template>
