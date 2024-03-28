@@ -53,7 +53,8 @@ const splitByDate = (dataArray) => {
   let tempArray = [];
 
   for (let i = 0; i < dataArray.length; i++) {
-    if (dataArray[i] === "2675") {
+    // 此处的数字要根据pdf进行变化
+    if (dataArray[i] === "2681") {
       if (tempArray.length > 0) {
         splitArrays.push(tempArray);
       }
@@ -143,9 +144,9 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  // console.log("dateData", dateData);
-  // console.log("splitList", splitList);
-  // console.log("finallyData", finallyData);
+  console.log("dateData", dateData);
+  console.log("splitList", splitList);
+  console.log("finallyData", finallyData);
   return finallyData;
 };
 
