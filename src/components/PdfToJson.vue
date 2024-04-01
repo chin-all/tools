@@ -190,7 +190,7 @@ const exportJSON = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${dateValue.value}.json`;
+  a.download = `农业银行.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

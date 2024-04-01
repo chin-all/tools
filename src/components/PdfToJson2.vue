@@ -48,13 +48,14 @@ const getEffectData = (data) => {
   return validData;
 };
 // 分割数组
+// 此处的数字要根据pdf进行变化
+const splitList = ["2668", "2685", "0088"];
 const splitByDate = (dataArray) => {
   const splitArrays = [];
   let tempArray = [];
 
   for (let i = 0; i < dataArray.length; i++) {
-    // 此处的数字要根据pdf进行变化
-    if (dataArray[i] === "2664") {
+    if (splitList.includes(dataArray[i])) {
       if (tempArray.length > 0) {
         splitArrays.push(tempArray);
       }
@@ -79,7 +80,12 @@ const splitByDate = (dataArray) => {
       splitArrays[i].pop();
     }
     // 有个本行atm的数据有点问题，会对数据照成影响，特殊处理一下
-    if (splitArrays[i].find((item) => item === "本行atm") && i > 0) {
+    if (
+      splitArrays[i].find(
+        (item) => item === "本行atm" || item === "银联中心"
+      ) &&
+      i > 0
+    ) {
       splitArrays[i - 1].push(splitArrays[i][0]);
       splitArrays[i][0] = "";
     }
@@ -107,6 +113,8 @@ const formatTransaction = (transaction) => {
   } else if (transaction.length === 9) {
     username = transaction[8];
     account = transaction[7];
+  } else if (transaction.length === 8) {
+    username = transaction[6] + transaction[7];
   } else if (transaction.length === 7) {
     username = transaction[6];
   }

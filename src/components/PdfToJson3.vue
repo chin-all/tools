@@ -132,19 +132,22 @@ const formatTransaction = (transaction) => {
   }
 
   const dateObject = moment(transaction[4], "YYYYMMDD");
-  let [where, summary, money, balance, date, billType, account, title] = [
+  const moneyType = parseFloat(transaction[2].replace(/,/g, ""));
+  let [account, summary, money, balance, date, billType, where, title] = [
     transaction[0],
     transaction[1],
     transaction[2],
     transaction[3],
     dateObject.format("YYYY/MM/DD"),
-    transaction[2] >= 0 ? 1 : 2,
+    moneyType >= 0 ? 1 : 2,
     "",
     convertToChineseWeekday(dateObject.format("YYYY/MM/DD dddd")),
   ];
   if (normalType.includes(summary)) {
-    account = transaction.slice(6).join("");
-    where = formatWhere(where);
+    // account = transaction.slice(6).join("");
+    // where = formatWhere(where);
+    account = formatWhere(account);
+    where = transaction.slice(6).join("");
   }
 
   const formattedTransaction = {
@@ -183,46 +186,72 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  // console.log("splitList", splitList);
+  console.log("splitList", splitList);
   // console.log("finallyData", finallyData);
   return finallyData;
 };
 
 // 最后将数据转换为想要的格式
-const addRandomTime = (dateString) => {
-  const dateObject = new Date(dateString);
-
-  const randomHour = Math.floor(Math.random() * 24);
-  const randomMinute = Math.floor(Math.random() * 60);
-  const randomSecond = Math.floor(Math.random() * 60);
-
-  dateObject.setHours(randomHour);
-  dateObject.setMinutes(randomMinute);
-  dateObject.setSeconds(randomSecond);
-
-  return dateObject.toISOString().slice(0, 19).replace("T", " ");
-};
 const dateToWant = (dataSource) => {
   return dataSource.reduce((acc, item) => {
     const existingDateIndex = acc.findIndex((obj) => obj.title === item.title);
     if (existingDateIndex !== -1) {
       acc[existingDateIndex].list.push({
         ...item,
-        dateTime: addRandomTime(item.date),
       });
     } else {
       acc.push({
-        date: item.title,
+        title: item.title,
+        date: item.date,
         list: [
           {
             ...item,
-            dateTime: addRandomTime(item.date),
           },
         ],
       });
     }
     return acc;
   }, []);
+};
+
+// 增加dateTime
+const addRandomTime = (dateString, count) => {
+  const dates = [];
+  // 解析输入的日期字符串
+  const dateObject = new Date(dateString);
+  // 生成随机时间并按顺序添加到数组中
+  for (let i = 0; i < count; i++) {
+    const randomHour = Math.floor(Math.random() * 24);
+    const randomMinute = Math.floor(Math.random() * 60);
+    const randomSecond = Math.floor(Math.random() * 60);
+    dateObject.setHours(randomHour);
+    dateObject.setMinutes(randomMinute);
+    dateObject.setSeconds(randomSecond);
+    // 复制日期对象，避免引用问题
+    const newDateObject = new Date(dateObject);
+    dates.push(newDateObject);
+  }
+  // 对数组中的日期对象进行从晚到早的排序
+  dates.sort((a, b) => b - a);
+  // 将日期对象格式化为字符串
+  const formattedDates = dates.map((dateObject) => {
+    return dateObject.toISOString().slice(0, 19).replace("T", " ");
+  });
+
+  return formattedDates;
+};
+const addDateTime = (dataSource) => {
+  return dataSource.map((item) => {
+    const countLength = item.list.length;
+    const randomTimes = addRandomTime(item.list[0].date, countLength);
+    item.list = item.list.map((subItem, index) => {
+      return {
+        ...subItem,
+        dateTime: randomTimes[index],
+      };
+    });
+    return item;
+  });
 };
 
 // pdf转换为json
@@ -249,7 +278,8 @@ const convertToJSON = (file) => {
         const target = getDateToTarget(item);
         allDate.push(...target);
       });
-      jsonData.value = dateToWant(allDate.reverse());
+      const lastDate = dateToWant(allDate.reverse());
+      jsonData.value = addDateTime(lastDate);
       console.log("最终数据：", jsonData.value);
     } catch (error) {
       console.error("PDF 转换出错:", jsonData.value);
@@ -278,7 +308,7 @@ const exportJSON = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${dateValue.value}.json`;
+  a.download = `建行.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
