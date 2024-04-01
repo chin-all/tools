@@ -10,13 +10,15 @@
 
 <script setup>
 /**
- *  @description: 处理PDF文件并生成JSON数据(信用社)
+ *  @description: 处理PDF文件并生成JSON数据(建行)
  */
 import { ref } from "vue";
 import * as pdfjs from "pdfjs-dist";
-import { random } from "lodash";
+import moment from "moment";
+
 const jsonData = ref("");
 const isLoading = ref(false);
+const dateValue = "bill";
 
 // 设置全局 Worker 文件路径
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -31,40 +33,36 @@ const handleFileChange = (event) => {
   }
 };
 
-// 获取从开始到结束的有效数据
-const getEffectData = (data) => {
-  const startRegex = "对方户名";
-  const endRegex =
-    "===============================================================================================================================";
-  // 匹配开始的数据
-  const startIndex = data.findIndex((item) => item == startRegex);
-  // 匹配到 第*页 结束的数据
-  let endIndex = data.findIndex((item) => item == endRegex);
-  if (endIndex === -1) {
-    endIndex = data.length; // 如果找不到结束模式，则将结束索引设置为数组的长度
-  }
-  const validData =
-    startIndex !== -1 ? data.slice(startIndex + 1, endIndex) : [];
-  return validData;
-};
 // 分割数组
+// 根据摘要类型进行分割
+const normalType = ["消费", "支付机构提现", "跨行转出", "代理付款", "转账支取"];
+const otherType = ["利息存入", "ATM取款"];
 const splitByDate = (dataArray) => {
   const splitArrays = [];
   let tempArray = [];
 
   for (let i = 0; i < dataArray.length; i++) {
-    // 此处的数字要根据pdf进行变化
-    if (dataArray[i] === "2664") {
+    if (normalType.includes(dataArray[i])) {
       if (tempArray.length > 0) {
         splitArrays.push(tempArray);
       }
-      tempArray = [dataArray[i - 1], dataArray[i]];
+      // 加一条判断，如果第一个里面没有数字，则再多添加一条进去
+      if (!/\d/.test(dataArray[i - 1]) && dataArray[i - 2]) {
+        tempArray = [dataArray[i - 2] + dataArray[i - 1], dataArray[i]];
+      } else {
+        tempArray = [dataArray[i - 1], dataArray[i]];
+      }
+    } else if (otherType.includes(dataArray[i])) {
+      if (tempArray.length > 0) {
+        splitArrays.push(tempArray);
+      }
+      tempArray = [dataArray[i]];
     } else {
       tempArray.push(dataArray[i]);
     }
   }
 
-  if (tempArray.length > 2) {
+  if (tempArray.length > 0) {
     splitArrays.push(tempArray);
   }
 
@@ -78,106 +76,147 @@ const splitByDate = (dataArray) => {
     if (splitArrays[i][childLength - 1] === splitArrays[i + 1][0]) {
       splitArrays[i].pop();
     }
-    // 有个本行atm的数据有点问题，会对数据照成影响，特殊处理一下
-    if (splitArrays[i].find((item) => item === "本行atm") && i > 0) {
-      splitArrays[i - 1].push(splitArrays[i][0]);
-      splitArrays[i][0] = "";
+    if (
+      splitArrays[i][childLength - 2] &&
+      splitArrays[i][childLength - 2] + splitArrays[i][childLength - 1] ===
+        splitArrays[i + 1][0]
+    ) {
+      splitArrays[i].pop();
+      splitArrays[i].pop();
     }
   }
   return splitArrays;
 };
+// 中英文星期转换
+const convertToChineseWeekday = (dateString) => {
+  const weekdays = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const chineseWeekdays = [
+    "星期日",
+    "星期一",
+    "星期二",
+    "星期三",
+    "星期四",
+    "星期五",
+    "星期六",
+  ];
+  // 查找英文星期在数组中的索引
+  const index = weekdays.indexOf(dateString.split(" ")[1]);
+  // 返回对应的中文星期
+  return dateString.replace(weekdays[index], chineseWeekdays[index]);
+};
+
+// 把"1000050001/微信转账" 转换为 "1000***0001 微信转账"
+const formatWhere = (transaction) => {
+  // 使用正则表达式匹配数字部分并替换
+  const formattedTransaction = transaction.replace(
+    /(\d{4})\d+(\d{4})/,
+    "$1***$2"
+  );
+  // 替换斜杠为空格
+  return formattedTransaction.replace("/", " ");
+};
+
 // 获取数据内容
 const formatTransaction = (transaction) => {
-  let [date, balance, money, time, summary, username, account, type] = [
-    transaction[5],
+  // 在属于otherType数据的数组头部添加空字符串
+  if (otherType.includes(transaction[0])) {
+    transaction.unshift("");
+  }
+
+  const dateObject = moment(transaction[4], "YYYYMMDD");
+  let [where, summary, money, balance, date, billType, account, title] = [
+    transaction[0],
+    transaction[1],
     transaction[2],
     transaction[3],
-    transaction[5],
-    transaction[0],
+    dateObject.format("YYYY/MM/DD"),
+    transaction[2] >= 0 ? 1 : 2,
     "",
-    "",
-    transaction[4] == "借方" ? "支出" : "收入",
+    convertToChineseWeekday(dateObject.format("YYYY/MM/DD dddd")),
   ];
-  if (transaction.length === 11) {
-    username = transaction[9] + transaction[10];
-    account = transaction[8];
-  } else if (transaction.length === 10) {
-    username = transaction[9];
-    account = transaction[8];
-  } else if (transaction.length === 9) {
-    username = transaction[8];
-    account = transaction[7];
-  } else if (transaction.length === 7) {
-    username = transaction[6];
+  if (normalType.includes(summary)) {
+    account = transaction.slice(6).join("");
+    where = formatWhere(where);
   }
 
   const formattedTransaction = {
-    date,
-    balance,
-    money,
-    time,
+    where,
     summary,
-    username,
+    money,
+    balance,
+    date,
+    billType,
     account,
-    type,
-    code: random(100000, 999999),
+    title,
+    dateTime: "",
   };
 
   return formattedTransaction;
 };
-// 格式化时间
-const formatTime = (timeString) => {
-  const year = timeString.slice(0, 4);
-  const month = timeString.slice(4, 6);
-  const day = timeString.slice(6, 8);
-  const hour = timeString.slice(9, 11) || "00";
-  const minute = timeString.slice(11, 13) || "00";
-  const second = timeString.slice(13, 15) || "00";
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+
+// 获取从开始到结束的有效数据
+const getEffectData = (data) => {
+  const startRegex = "序号";
+  const endRegex = /- 第(\d+)页\/共(\d+)页 -/;
+  // 匹配开始的数据
+  const startIndex = data.findIndex((item) => item == startRegex);
+  // 匹配到 第*页 结束的数据
+  let endIndex = data.findIndex((item) => item == endRegex);
+  if (endIndex === -1) {
+    endIndex = data.length; // 如果找不到结束模式，则将结束索引设置为数组的长度
+  }
+  const validData = startIndex !== -1 ? data.slice(startIndex + 1, -3) : [];
+  return validData;
 };
 
 // 获取有效数据并转换为目标数据
 const getDateToTarget = (initial) => {
-  const pdfText = initial + "\n";
-  const initData = JSON.stringify(pdfText, null, 2);
   const jsonList = initial.filter((item) => item !== "" && item !== " ");
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  // console.log("dateData", dateData);
   // console.log("splitList", splitList);
   // console.log("finallyData", finallyData);
   return finallyData;
 };
 
 // 最后将数据转换为想要的格式
+const addRandomTime = (dateString) => {
+  const dateObject = new Date(dateString);
+
+  const randomHour = Math.floor(Math.random() * 24);
+  const randomMinute = Math.floor(Math.random() * 60);
+  const randomSecond = Math.floor(Math.random() * 60);
+
+  dateObject.setHours(randomHour);
+  dateObject.setMinutes(randomMinute);
+  dateObject.setSeconds(randomSecond);
+
+  return dateObject.toISOString().slice(0, 19).replace("T", " ");
+};
 const dateToWant = (dataSource) => {
   return dataSource.reduce((acc, item) => {
-    const existingDateIndex = acc.findIndex((obj) => obj.date === item.date);
+    const existingDateIndex = acc.findIndex((obj) => obj.title === item.title);
     if (existingDateIndex !== -1) {
       acc[existingDateIndex].list.push({
-        balance: item.balance,
-        money: item.money,
-        time: item.time,
-        summary: item.summary,
-        username: item.username,
-        account: item.account,
-        type: item.type,
-        code: item.code,
+        ...item,
+        dateTime: addRandomTime(item.date),
       });
     } else {
       acc.push({
-        date: item.date,
+        date: item.title,
         list: [
           {
-            balance: item.balance,
-            money: item.money,
-            time: item.time,
-            summary: item.summary,
-            username: item.username,
-            account: item.account,
-            type: item.type,
-            code: item.code,
+            ...item,
+            dateTime: addRandomTime(item.date),
           },
         ],
       });
@@ -202,13 +241,14 @@ const convertToJSON = (file) => {
         const text = content.items.map((item) => item.str);
         pdfTextList.push(text);
       }
+      // const finallyData = pdfTextList.map((item) => getDateToTarget(item));
+      // jsonData.value = finallyData;
 
       const allDate = [];
       pdfTextList.forEach((item) => {
         const target = getDateToTarget(item);
         allDate.push(...target);
       });
-
       jsonData.value = dateToWant(allDate.reverse());
       console.log("最终数据：", jsonData.value);
     } catch (error) {
@@ -238,7 +278,7 @@ const exportJSON = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `信用社.json`;
+  a.download = `${dateValue.value}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

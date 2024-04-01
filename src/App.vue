@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import PdfToJson from "./components/PdfToJson2.vue";
+import PdfToJson from "./components/PdfToJson3.vue";
+// import PdfToJson from "./components/BasicsPdfToJson.vue";
 </script>
 
 <template>
