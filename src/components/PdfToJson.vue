@@ -73,9 +73,25 @@ const splitByDate = (data) => {
 
   return result;
 };
+// 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
+function validateString(input) {
+  // 正则表达式匹配数字加汉字
+  const regex = /^[\d]+[\u4e00-\u9fa5]+$/;
+  return regex.test(input);
+}
+// 拆分组合
+function splitChineseAndDigits(input) {
+  // 使用正则表达式将汉字替换为空字符串
+  const digitsString = input.replace(/[\u4e00-\u9fa5]/g, "");
+
+  // 使用正则表达式将数字替换为空字符串
+  const chineseString = input.replace(/\d/g, "");
+
+  return { digitsString, chineseString };
+}
 // 获取数据内容
 const formatTransaction = (transaction) => {
-  const [
+  let [
     time, // 日期时间
     tradingNetwork, // 交易网点
     name, // 短摘要
@@ -92,8 +108,17 @@ const formatTransaction = (transaction) => {
   let account = "";
   let receiveNm = "";
   if (receive.length > 1) {
-    account = receive[0];
-    receiveNm = receive[1];
+    // 防止这样的数据 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
+    if (validateString(receive[0])) {
+      const { digitsString, chineseString } = splitChineseAndDigits(receive[0]);
+      account = digitsString;
+      // receiveNm = ''
+      desc = chineseString + receive[1];
+    } else {
+      account = receive[0];
+      receiveNm = receive[1];
+      // desc = receive[1];
+    }
   }
 
   const formattedTransaction = {
@@ -134,6 +159,7 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
+  console.log("splitList", splitList);
   return finallyData;
 };
 
