@@ -104,21 +104,29 @@ const formatTransaction = (transaction) => {
   ] = transaction;
 
   const receive = info?.split(" ") ?? [];
-
   let account = "";
   let receiveNm = "";
+  let payNm = ""; // 新增字段 收款方
   if (receive.length > 1) {
     // 防止这样的数据 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
     if (validateString(receive[0])) {
       const { digitsString, chineseString } = splitChineseAndDigits(receive[0]);
       account = digitsString;
-      // receiveNm = ''
-      desc = chineseString + receive[1];
+      receiveNm = chineseString + receive[1];
+      desc = "";
     } else {
       account = receive[0];
       receiveNm = receive[1];
       // desc = receive[1];
     }
+  }
+  // 防止这样的数据 6231330100049464693叶正清
+  if (validateString(info)) {
+    const { digitsString, chineseString } = splitChineseAndDigits(info);
+    account = digitsString;
+    receiveNm = chineseString;
+    payNm = chineseString;
+    desc = "";
   }
 
   const formattedTransaction = {
@@ -132,6 +140,7 @@ const formatTransaction = (transaction) => {
     desc: desc ?? info ?? "",
     type: "转账",
     billType: parseFloat(money) < 0 ? 1 : 2,
+    payNm,
   };
 
   return formattedTransaction;
