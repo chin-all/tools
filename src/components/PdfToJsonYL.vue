@@ -10,7 +10,7 @@
 
 <script setup>
 /**
- *  @description: 处理PDF文件并生成JSON数据(农业银行)
+ *  @description: 处理PDF文件并生成JSON数据(农业银行-玉林)
  */
 import { ref } from "vue";
 import * as pdfjs from "pdfjs-dist";
@@ -34,44 +34,55 @@ const handleFileChange = (event) => {
 
 // 获取从开始到结束的有效数据
 const getEffectData = (data) => {
-  const startRegex = /\d{8}\s\d{6}/; // 例 "20230320 131631"
-  const startRegexShot = /\b\d{8}\b/; // 例 "20230320"
+  const startRegex = "曾康";
+  const endRegex = "打印渠道";
+  // const startRegex = /\d{8}\s\d{6}/; // 例 "20230320 131631"
+  // const startRegexShot = /\b\d{8}\b/; // 例 "20230320"
   // 匹配开始的数据
-  const startIndex = data.findIndex(
-    (item) =>
-      startRegex.test(item) ||
-      (startRegexShot.test(item) && !/\d{8}-\d{8}/.test(item))
-  );
-  // 匹配到 第*页 结束的数据
-  let endIndex = data.findIndex((item) => /第\d+页\/共\d+页/.test(item));
+  const startIndex = data.findIndex((item) => item == startRegex);
+  // 匹配到结束的数据
+  let endIndex = data.findIndex((item) => item == endRegex);
   if (endIndex === -1) {
     endIndex = data.length; // 如果找不到结束模式，则将结束索引设置为数组的长度
   }
-  const validData = startIndex !== -1 ? data.slice(startIndex, endIndex) : [];
+  const validData =
+    startIndex !== -1 ? data.slice(startIndex + 1, endIndex) : [];
   return validData;
 };
 // 分割数组
-const splitByDate = (data) => {
-  const result = [];
-  let currentSubarray = [];
+const splitArray = ["EPAY", "BTCH", "IBPS", "TERM", "ATMP"];
+const splitList = ["209999", "419999", "206504"];
+const splitByDate = (dataArray) => {
+  const splitArrays = [];
+  let tempArray = [];
 
-  for (const item of data) {
-    if (/^\d{8}(?:\s\d{6})?$/.test(item)) {
-      // 如果当前项是日期格式，则将当前子数组推送到结果数组中，并创建一个新的子数组
-      if (currentSubarray.length > 0) {
-        result.push(currentSubarray);
-        currentSubarray = [];
+  for (let i = 0; i < dataArray.length; i++) {
+    if (splitList.includes(dataArray[i])) {
+      if (tempArray.length > 0) {
+        splitArrays.push(tempArray);
       }
+      tempArray = [dataArray[i - 1], dataArray[i]];
+    } else {
+      tempArray.push(dataArray[i]);
     }
-    currentSubarray.push(item);
   }
 
-  // 推送最后一个子数组到结果数组中
-  if (currentSubarray.length > 0) {
-    result.push(currentSubarray);
+  if (tempArray.length > 2) {
+    splitArrays.push(tempArray);
   }
 
-  return result;
+  splitArrays.shift();
+  for (let i = 0; i < splitArrays.length; i++) {
+    const childLength = splitArrays[i].length;
+    if (!splitArrays[i + 1]) {
+      continue;
+    }
+    if (splitArrays[i][childLength - 1] === splitArrays[i + 1][0]) {
+      splitArrays[i].pop();
+    }
+  }
+
+  return splitArrays;
 };
 // 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
 function validateString(input) {
@@ -91,59 +102,66 @@ function splitChineseAndDigits(input) {
 }
 // 获取数据内容
 const formatTransaction = (transaction) => {
-  let [
-    time, // 日期时间
-    tradingNetwork, // 交易网点
-    name, // 短摘要
+  const [
     balance, // 本次余额
-    logNum, // 日志号
-    channel, // 渠道
+    tradingNetwork, // 交易网点
     money, // 交易金额
-    info, // 对方账号户名 or 附言
-    desc, // 附言
-  ] = transaction;
-
-  const receive = info?.split(" ") ?? [];
-  let account = "";
-  let receiveNm = "";
-  let payNm = ""; // 新增字段 收款方
-  if (receive.length > 1) {
-    // 防止这样的数据 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
-    if (validateString(receive[0])) {
-      const { digitsString, chineseString } = splitChineseAndDigits(receive[0]);
-      account = digitsString;
-      receiveNm = chineseString + receive[1];
-      desc = "";
+    channel, // 渠道
+  ] = [transaction[0], transaction[1], transaction[2], transaction[3]];
+  // 日期时间
+  const timeDate = transaction[transaction.length - 1];
+  // 短摘要
+  const name = transaction[transaction.length - 2];
+  // 日志号
+  const logNum = transaction[transaction.length - 3];
+  // 其他参数
+  let [account, receiveNm, desc, payNm] = ["", "", "", ""];
+  if (transaction.length === 7) {
+    // 好像没有什么了
+  } else if (transaction.length === 8) {
+    if (validateString(transaction[4])) {
+      const { digitsString, chineseString } = splitChineseAndDigits(
+        transaction[4]
+      );
+    } else if (validateString(transaction[5])) {
     } else {
-      account = receive[0];
-      receiveNm = receive[1];
-      // desc = receive[1];
     }
-  }
-  // 防止这样的数据 6231330100049464693叶正清
-  if (validateString(info)) {
-    const { digitsString, chineseString } = splitChineseAndDigits(info);
-    account = digitsString;
-    receiveNm = chineseString;
-    payNm = chineseString;
-    desc = "";
+  } else if (transaction.length === 9) {
+  } else if (transaction.length === 10) {
   }
 
-  if (transaction.includes("工资")) {
-    account = transaction[transaction.length - 2];
-    receiveNm = transaction[transaction.length - 1];
-    desc = "";
-  }
+  // const receive = info?.split(" ") ?? [];
+  // if (receive.length > 1) {
+  //   // 防止这样的数据 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
+  //   if (validateString(receive[0])) {
+  //     const { digitsString, chineseString } = splitChineseAndDigits(receive[0]);
+  //     account = digitsString;
+  //     receiveNm = chineseString + receive[1];
+  //     desc = "";
+  //   } else {
+  //     account = receive[0];
+  //     receiveNm = receive[1];
+  //     // desc = receive[1];
+  //   }
+  // }
+  // // 防止这样的数据 6231330100049464693叶正清
+  // if (validateString(info)) {
+  //   const { digitsString, chineseString } = splitChineseAndDigits(info);
+  //   account = digitsString;
+  //   receiveNm = chineseString;
+  //   payNm = chineseString;
+  //   desc = "";
+  // }
 
   const formattedTransaction = {
-    time: formatTime(time),
+    time: formatTime(timeDate),
     name,
     money,
     balance,
     channel,
     account,
-    receiveNm: receiveNm || "",
-    desc: desc ?? info ?? "",
+    receiveNm,
+    desc,
     type: "转账",
     billType: parseFloat(money) < 0 ? 1 : 2,
     payNm,
@@ -174,6 +192,8 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
+  console.log("jsonList", jsonList);
+  console.log("dateData", dateData);
   console.log("splitList", splitList);
   return finallyData;
 };
