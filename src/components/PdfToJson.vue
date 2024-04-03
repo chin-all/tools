@@ -130,9 +130,15 @@ const formatTransaction = (transaction) => {
   }
 
   if (transaction.includes("工资")) {
-    account = transaction[transaction.length - 2];
-    receiveNm = transaction[transaction.length - 1];
-    desc = "";
+    // console.log("transaction", transaction);
+    const lengthM = transaction.length;
+    if (validateString(transaction[lengthM - 1])) {
+      // 不做操作
+    } else {
+      account = transaction[lengthM - 2];
+      receiveNm = transaction[lengthM - 1];
+      desc = "";
+    }
   }
 
   const formattedTransaction = {
@@ -174,7 +180,7 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  console.log("splitList", splitList);
+  // console.log("splitList", splitList);
   return finallyData;
 };
 
