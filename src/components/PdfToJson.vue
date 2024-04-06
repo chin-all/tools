@@ -141,19 +141,41 @@ const formatTransaction = (transaction) => {
     }
   }
 
+  // 转支 和 工资 和 转存 如下
   const formattedTransaction = {
-    time: formatTime(time),
-    name,
-    money,
-    balance,
-    channel,
-    account,
-    receiveNm: receiveNm || "",
-    desc: desc ?? info ?? "",
-    type: "转账",
+    time: formatTime(time), // 交易时间
+    name, // 交易摘要
+    money, // 交易金额
+    balance, // 本次余额
+    channel, // 交易渠道
+    // account,
+    // receiveNm: receiveNm || "",
+    /* ⬇️新增⬇️ */
+    // collectionNm: parseFloat(money) > 0 ? receiveNm : "", // 收款方
+    // collectionAccount: parseFloat(money) > 0 ? account : "", // 收款账户
+    // payNm: parseFloat(money) < 0 ? receiveNm : "", // 付款方
+    // payAccount: parseFloat(money) < 0 ? account : "", // 付款账户
+    /* ⬆️新增⬆️ */
+    desc: desc ?? info ?? "", // 交易附言
+    type: "转账", // 交易类型
+    // 1 支付（负） 2 收入（正）
+    // 类型 1 付款方 付款账户
+    // 类型 2 收款方 收款账户
     billType: parseFloat(money) < 0 ? 1 : 2,
-    payNm,
   };
+  const otherType = ["工资", "转支", "转存"];
+  if (!otherType.includes(name)) {
+    // formattedTransaction.account = account;
+    // formattedTransaction.receiveNm = receiveNm || "";
+    formattedTransaction.account = "";
+    formattedTransaction.receiveNm = "";
+  } else {
+    formattedTransaction.collectionNm = parseFloat(money) > 0 ? receiveNm : "";
+    formattedTransaction.collectionAccount =
+      parseFloat(money) > 0 ? account : "";
+    formattedTransaction.payNm = parseFloat(money) < 0 ? receiveNm : "";
+    formattedTransaction.payAccount = parseFloat(money) < 0 ? account : "";
+  }
 
   return formattedTransaction;
 };
