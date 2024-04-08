@@ -106,13 +106,14 @@ const formatTransaction = (transaction) => {
   const receive = info?.split(" ") ?? [];
   let account = "";
   let receiveNm = "";
-  let payNm = ""; // 新增字段 收款方
+  // let payNm = ""; // 新增字段 收款方
   if (receive.length > 1) {
     // 防止这样的数据 20113201040002869柳州市香妃美容用品有限公司 数字+汉字组合
     if (validateString(receive[0])) {
       const { digitsString, chineseString } = splitChineseAndDigits(receive[0]);
       account = digitsString;
       receiveNm = chineseString + receive[1];
+      // receiveNm = chineseString;
       desc = "";
     } else {
       account = receive[0];
@@ -125,21 +126,21 @@ const formatTransaction = (transaction) => {
     const { digitsString, chineseString } = splitChineseAndDigits(info);
     account = digitsString;
     receiveNm = chineseString;
-    payNm = chineseString;
+    // payNm = chineseString;
     desc = "";
   }
 
-  if (transaction.includes("工资")) {
-    // console.log("transaction", transaction);
-    const lengthM = transaction.length;
-    if (validateString(transaction[lengthM - 1])) {
-      // 不做操作
-    } else {
-      account = transaction[lengthM - 2];
-      receiveNm = transaction[lengthM - 1];
-      desc = "";
-    }
-  }
+  // if (transaction.includes("工资")) {
+  //   // console.log("transaction", transaction);
+  //   const lengthM = transaction.length;
+  //   if (validateString(transaction[lengthM - 1])) {
+  //     // 不做操作
+  //   } else {
+  //     account = transaction[lengthM - 2];
+  //     receiveNm = transaction[lengthM - 1];
+  //     desc = "";
+  //   }
+  // }
 
   // 转支 和 工资 和 转存 如下
   const formattedTransaction = {
@@ -202,7 +203,7 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  // console.log("splitList", splitList);
+  console.log("splitList", splitList);
   return finallyData;
 };
 
