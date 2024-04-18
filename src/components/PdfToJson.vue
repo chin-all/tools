@@ -89,6 +89,15 @@ function splitChineseAndDigits(input) {
 
   return { digitsString, chineseString };
 }
+// 根据数字和非数字字符进行分割
+function splitStringByNumbersAndNonNumbers(str) {
+  // 使用正则表达式匹配数字和非数字字符
+  const regex = /(\d+)|(\D+)/g;
+  const matches = str.match(regex);
+  // 过滤掉匹配结果中的 undefined
+  const result = matches.filter((match) => match !== undefined);
+  return result;
+}
 // 获取数据内容
 const formatTransaction = (transaction) => {
   let [
@@ -142,6 +151,15 @@ const formatTransaction = (transaction) => {
   //   }
   // }
 
+  // 养老金
+  if (info && info.includes("养老保险基金")) {
+    const stringList = splitStringByNumbersAndNonNumbers(info);
+    console.log("养老保险基金", stringList);
+    account = stringList[0];
+    receiveNm = stringList[1];
+    desc = "";
+  }
+
   // 转支 和 工资 和 转存 如下
   const formattedTransaction = {
     time: formatTime(time), // 交易时间
@@ -164,7 +182,7 @@ const formatTransaction = (transaction) => {
     // 类型 2 收款方 收款账户
     billType: parseFloat(money) < 0 ? 1 : 2,
   };
-  const otherType = ["工资", "转支", "转存"];
+  const otherType = ["工资", "转支", "转存", "养老金"];
   if (!otherType.includes(name)) {
     // formattedTransaction.account = account;
     // formattedTransaction.receiveNm = receiveNm || "";
