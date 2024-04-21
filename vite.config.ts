@@ -15,4 +15,7 @@ export default defineConfig({
   define: {
     "process.env": {},
   },
+  server: {
+    port: 3000, // 设置端口号为3000
+  },
 });
