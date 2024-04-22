@@ -2,8 +2,10 @@
   <div>
     <input type="file" @change="handleFileChange" accept=".doc,.docx" />
     <button @click="convertToJson" :disabled="!fileContent">
-      Convert to JSON
+      Docx Word 转为 JSON
     </button>
+    <span> </span>
+    <button @click="exportJSON" v-if="jsonData">导出JSON</button>
     <pre v-if="jsonData">{{ jsonData }}</pre>
   </div>
 </template>
@@ -60,10 +62,12 @@ const splitByDateFormat = (lines) => {
     "list": [
       {
         dealPay:'1,090.00' ,// 交易金额	
-        collectionNm:'某某公司或者姓名'  // 收款
-        collectionAccount:'卡号' // 收款账户
-        payNm :'某某公司或者姓名'  // 对方名称 
-        payAccount :'卡号' // 付款账户
+        account:'', // 账号
+        accountNum:'', // 账户
+        // collectionNm:'某某公司或者姓名'  // 收款
+        // collectionAccount:'卡号' // 收款账户
+        // payNm :'某某公司或者姓名'  // 对方名称 
+        // payAccount :'卡号' // 付款账户
         dealTime:'2023/04/02 20:38:32' // 交易时间
         chargeUpTime:'2023/04/02 20:38:32'// 记账时间
         dealType:'网上支付', // 交易类型
@@ -92,18 +96,35 @@ const convertData = (dataArray) => {
   ] = dataArray;
   return {
     dealPay,
-    collectionNm,
-    collectionAccount,
-    payNm,
-    payAccount: "", // 付款账户
-    dealTime: `${date} ${time}`,
-    chargeUpTime: `${date} ${time}`,
+    // account: '618475225756', // 账号（需要手动填）
+    account: collectionAccount.includes("------") ? "" : collectionAccount,
+    accountNum: payNm.includes("------") ? "" : payNm,
+    dealTime: `${date} ${time}`.replace(/\-/g, "/"),
+    chargeUpTime: `${date} ${time}`.replace(/\-/g, "/"),
     dealType,
     balance,
-    channel,
-    postscript,
-    billType: 2, // 1 收入 2 支出
+    channel: channel.includes("------") ? "" : channel.replace(/ /g, ""),
+    postscript: postscript.includes("------")
+      ? ""
+      : postscript.replace(/ /g, ""),
+    billType: dealPay.includes("-") ? 2 : 1, // 1 收入 2 支出
   };
+};
+const transitionData = (data) => {
+  return data.reduce((acc, item) => {
+    const existingDateIndex = acc.findIndex(
+      (obj) => obj.date === item.dealTime.substring(0, 7)
+    );
+    if (existingDateIndex !== -1) {
+      acc[existingDateIndex].list.push(item);
+    } else {
+      acc.push({
+        date: item.dealTime.substring(0, 7),
+        list: [item],
+      });
+    }
+    return acc;
+  }, []);
 };
 // 处理转换后的数据
 const handleConvertedData = (data) => {
@@ -129,8 +150,10 @@ const handleConvertedData = (data) => {
     (line) => !line.includes(filterString) && !line.includes(filterString2)
   );
   const convertToData = splitByDateFormat(filterData);
-  const convert = filterData.map((data) => convertData(convertToData));
-  return convert;
+  const convert = convertToData.map((data) => convertData(data));
+  const finalData = transitionData(convert);
+  // console.log("转化前的数据", convert);
+  return finalData;
 };
 // 转换为 JSON
 const convertToJson = async () => {
@@ -145,10 +168,23 @@ const convertToJson = async () => {
       .filter((line) => line.trim() !== "");
     // 根据具体需求进行解析和转换
     jsonData.value = handleConvertedData(hasValidData);
-    console.log("处理前的数据", hasValidData);
+    // console.log("处理前的数据", hasValidData);
     console.log("最终数据", jsonData.value);
   } catch (error) {
     console.error("Error converting to JSON:", error);
   }
+};
+// 导出json
+const exportJSON = () => {
+  const data = JSON.stringify(jsonData.value, null, 2); // 将数组对象转换为 JSON 字符串
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `中国银行 word.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 </script>

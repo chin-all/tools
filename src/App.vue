@@ -5,6 +5,7 @@ import WordToJson from "./components/WordToJson.vue";
 </script>
 
 <template>
+  <!-- <PdfToJson /> -->
   <WordToJson />
 </template>
 
