@@ -93,7 +93,7 @@ const getDateToTarget = (initial) => {
   const finallyData = splitList.map((item) => formatTransaction(item));
   // console.log("splitList", splitList);
   // console.log("finallyData", finallyData);
-  return finallyData;
+  return jsonList;
 };
 
 // pdf转换为json

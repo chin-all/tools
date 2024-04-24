@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import PdfToJson from "./components/PdfToJson.vue";
 // import PdfToJson from "./components/BasicsPdfToJson.vue";
+// import PdfToJson from "./components/PdfToJson.vue";
+import WordToJson from "./components/WordToJson.vue";
 </script>
 
 <template>
-  <PdfToJson />
+  <!-- <PdfToJson /> -->
+  <WordToJson />
 </template>
 
 <style scoped>
