@@ -49,7 +49,19 @@ const getEffectData = (data) => {
 };
 // 分割数组
 // 此处的数字要根据pdf进行变化
-const splitList = ["2668", "2685", "0088", "2664", "2675", "2165", "2682"];
+const splitList = [
+  "2668",
+  "2685",
+  "0088",
+  "2664",
+  "2675",
+  "2165",
+  "2682",
+  "2673",
+  "2658",
+  "2663",
+  "2681",
+];
 const splitByDate = (dataArray) => {
   const splitArrays = [];
   let tempArray = [];

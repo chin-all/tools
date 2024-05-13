@@ -154,7 +154,7 @@ const formatTransaction = (transaction) => {
   // 养老金
   if (info && info.includes("养老保险基金")) {
     const stringList = splitStringByNumbersAndNonNumbers(info);
-    console.log("养老保险基金", stringList);
+    // console.log("养老保险基金", stringList);
     account = stringList[0];
     receiveNm = stringList[1];
     desc = "";
@@ -221,7 +221,7 @@ const getDateToTarget = (initial) => {
   const dateData = getEffectData(jsonList);
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
-  console.log("splitList", splitList);
+  // console.log("splitList", splitList);
   return finallyData;
 };
 
