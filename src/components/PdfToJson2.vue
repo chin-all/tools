@@ -49,7 +49,21 @@ const getEffectData = (data) => {
 };
 // 分割数组
 // 此处的数字要根据pdf进行变化
-const splitList = ["2668", "2685", "0088", "2664", "2675", "2165", "2682"];
+const splitList = [
+  // "2668",
+  // "2685",
+  // "0088",
+  // "2664",
+  // "2675",
+  // "2165",
+  // "2682",
+  // "2683",
+  // "2556",
+  // "2656",
+  // "2672",
+  "2682",
+  "0088",
+];
 const splitByDate = (dataArray) => {
   const splitArrays = [];
   let tempArray = [];
@@ -76,7 +90,10 @@ const splitByDate = (dataArray) => {
     if (!splitArrays[i + 1]) {
       continue;
     }
-    if (splitArrays[i][childLength - 1] === splitArrays[i + 1][0]) {
+    if (
+      splitArrays[i][childLength - 1] === splitArrays[i + 1][0] &&
+      isNumeric(splitArrays[i][childLength - 1])
+    ) {
       splitArrays[i].pop();
     }
     // 有个本行atm的数据有点问题，会对数据照成影响，特殊处理一下
@@ -91,6 +108,11 @@ const splitByDate = (dataArray) => {
     }
   }
   return splitArrays;
+};
+// 因为有的数据没有摘要内容这一列，导出数据会有问题，使用做这个处理，并且给工资例外
+const isNumeric = (str) => {
+  if (str == "工资") return true;
+  return /^\d+$/.test(str);
 };
 // 获取数据内容
 const formatTransaction = (transaction) => {
@@ -153,7 +175,7 @@ const getDateToTarget = (initial) => {
   const splitList = splitByDate(dateData);
   const finallyData = splitList.map((item) => formatTransaction(item));
   // console.log("dateData", dateData);
-  // console.log("splitList", splitList);
+  console.log("splitList", splitList);
   // console.log("finallyData", finallyData);
   return finallyData;
 };
